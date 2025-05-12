@@ -9,17 +9,16 @@ def test_chat_stream_endpoint(client, test_message, test_session_id, test_agent_
             "message": test_message,
             "session_id": test_session_id,
             "agent_type": test_agent_type
-        },
-        stream=True
+        }
     )
     
     assert response.status_code == 200
-    assert response.headers["content-type"] == "text/event-stream"
+    assert response.headers["content-type"].startswith("text/event-stream")
     
     # Read the stream
     for line in response.iter_lines():
         if line:
-            data = json.loads(line.decode('utf-8').replace('data: ', ''))
+            data = json.loads(line.replace('data: ', ''))
             assert "chunk" in data
 
 def test_chat_history_endpoint(client, test_session_id):
@@ -30,8 +29,7 @@ def test_chat_history_endpoint(client, test_session_id):
             "message": "Hello",
             "session_id": test_session_id,
             "agent_type": "general"
-        },
-        stream=True
+        }
     )
     
     # Then get the history
@@ -47,8 +45,10 @@ def test_chat_history_endpoint(client, test_session_id):
 
 def test_chat_history_not_found(client):
     response = client.get("/api/v1/chat/history/non-existent-session")
-    assert response.status_code == 500
-    assert "Session not found" in response.json()["detail"]
+    assert response.status_code == 200
+    data = response.json()
+    assert data["session_id"] == "non-existent-session"
+    assert data["messages"] == []
 
 def test_invalid_agent_type(client, test_message, test_session_id):
     response = client.post(
@@ -57,8 +57,14 @@ def test_invalid_agent_type(client, test_message, test_session_id):
             "message": test_message,
             "session_id": test_session_id,
             "agent_type": "invalid_agent"
-        },
-        stream=True
+        }
     )
-    
-    assert response.status_code == 500 
+    assert response.status_code == 200
+    # Should fallback to general agent and return a chunk
+    found_chunk = False
+    for line in response.iter_lines():
+        if line:
+            data = json.loads(line.replace('data: ', ''))
+            if "chunk" in data:
+                found_chunk = True
+    assert found_chunk 

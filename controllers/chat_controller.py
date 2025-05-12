@@ -20,7 +20,7 @@ class ChatController:
         self.llm = ChatOpenAI(temperature=0.7, model="openai/gpt-4.1-mini",api_key=os.getenv("GITHUB_TOKEN"),base_url="https://models.github.ai/inference")
         self.setup_agents()
         self.workflow = self._build_workflow()
-        self.save_workflow_graph()
+        # self.save_workflow_graph()
         self.logger = logging.getLogger("chat_controller")
 
     def setup_agents(self):
